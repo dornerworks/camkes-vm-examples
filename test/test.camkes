@@ -1,0 +1,65 @@
+/*
+ * Copyright 2020, DornerWorks
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(DORNERWORKS_BSD)
+ */
+
+import <VM/vm.camkes>;
+
+#include <configurations/vm.h>
+#include <configurations/sata.h>
+
+#define VM_GUEST_CMDLINE "earlyprintk=ttyS0,115200 console=ttyS0,115200 i8042.nokbd=y i8042.nomux=y \
+i8042.noaux=y noisapnp pci=nomsi,noacpi nolapic_timer debug root=/dev/vda1"
+
+component Init0 {
+    VM_INIT_DEF()
+    VM_INIT_SATA()
+}
+
+assembly {
+    composition {
+        VM_COMPOSITION_DEF()
+        SATA_COMPOSITION_DEF()
+
+        VM_PER_VM_COMP_DEF(0)
+        VM_SATA_CONNECTIONS(0)
+    }
+
+    configuration {
+        VM_CONFIGURATION_DEF()
+        VM_PER_VM_CONFIG_DEF(0)
+
+        VM_SATA_CONFIG()
+
+        sataserver.ioports = "0xfe00:0xfe07,0xfe10:0xfe13,0xfe20:0xfe27,0xfe30:0xfe33,0xfec0:0xfedf";
+        sataserver.iospaces = "0x12:0x0:0x1f:2";
+        sataserver.pci_bdfs = "0x0:0x1f.2";
+        sataserver.iospace_id = 0x12;
+        sataserver.num_bdfs = 1;
+        sataserver.drive = 2;
+
+        vm0.simple_untyped25_pool = 95;
+        vm0.heap_size = 0x2000000;
+        vm0.guest_ram_mb = 1900;
+        vm0.kernel_cmdline = VM_GUEST_CMDLINE;
+        vm0.kernel_image = "bzimage";
+        vm0.iospace_domain = 0x0f;
+        vm0.cnode_size_bits = 24;
+
+        vm0.sched_ctrl = [0, 1, 2, 3, 4, 5];
+
+        vm0.sataserver_iface_attributes = "0";
+        vm0.sataserver_iface_partitions = [4];  /* Physical Partition assigned to VM0 */
+
+        vm0_config.init_cons = [
+            {"init":"make_virtio_blk", "badge":VM_PIC_BADGE_BLK_XFER, "irq":"virtio_blk_notify"},
+        ];
+
+        vm0_config.pci_devices_iospace = 1;
+    }
+}
